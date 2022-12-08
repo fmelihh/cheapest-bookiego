@@ -3,15 +3,14 @@ package biblio
 import (
 	"fmt"
 	"github.com/gocolly/colly"
+	"log"
 	"strconv"
 	"strings"
 )
 
-type Book struct {
-	title  string
-	url    string
-	author string
-	price  string
+import "cheapest-bookiego/models"
+
+type CrawlerBiblio struct {
 }
 
 type PageInfo struct {
@@ -21,13 +20,23 @@ type PageInfo struct {
 
 const URL = "www.biblio.com"
 
-func Scrape(keyword string) {
-	pageInfo := getIterationInfo(keyword)
-	bookList := getPageBook(pageInfo.page, pageInfo.sid)
-	fmt.Println(bookList)
+func NewBiblio() *CrawlerBiblio {
+	return &CrawlerBiblio{}
 }
 
-func getIterationInfo(keyword string) PageInfo {
+func (crawler CrawlerBiblio) Scrape(keyword string) []models.Book {
+	keyword = strings.Replace(keyword, " ", "%20", -1)
+	pageInfo := crawler.getIterationInfo(keyword)
+	bookList := crawler.getPageBook(pageInfo.page, pageInfo.sid)
+
+	return bookList
+}
+
+func (crawler CrawlerBiblio) GetName() string {
+	return "BIBLIO"
+}
+
+func (crawler CrawlerBiblio) getIterationInfo(keyword string) *PageInfo {
 	var pages []string
 	sid := ""
 
@@ -48,29 +57,36 @@ func getIterationInfo(keyword string) PageInfo {
 	}
 
 	page, _ := strconv.Atoi(pages[len(pages)-2])
-	return PageInfo{
+	return &PageInfo{
 		page: page,
 		sid:  sid,
 	}
+
 }
 
-func getPageBook(pageCount int, sid string) []Book {
-	bookList := make([]Book, 1)
+func (crawler CrawlerBiblio) getPageBook(page int, sid string) []models.Book {
+	bookList := make([]models.Book, 1)
+	c := colly.NewCollector(colly.AllowedDomains(URL))
+	if page > 5 {
+		page = 5
+	}
 
-	for i := 1; i < pageCount; i++ {
-		c := colly.NewCollector(colly.AllowedDomains(URL))
+	for i := 1; i < page; i++ {
 		c.OnHTML(".results.summary", func(element *colly.HTMLElement) {
 			element.ForEach(".item", func(_ int, element *colly.HTMLElement) {
 				title := element.ChildText(".basic-info .item-title .title")
 				url := element.ChildAttr(".basic-info .item-title .title a", "href")
 				author := element.ChildText(".basic-info .item-title .author")
-				price := element.ChildText(".pricing .price-wrap .price span.item-price")
 
-				bookList = append(bookList, Book{
-					title:  title,
-					url:    url,
-					author: author,
-					price:  price,
+				price := element.ChildText(".pricing .price-wrap .price span.item-price")
+				price = strings.Split(price, "$")[1]
+				log.Printf("[INFO]: Title: %s, Author: %s, Price: %s, Url: %s", title, author, price, url)
+
+				bookList = append(bookList, models.Book{
+					Title:  title,
+					Url:    url,
+					Author: author,
+					Price:  price,
 				})
 			})
 		})

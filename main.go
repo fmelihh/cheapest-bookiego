@@ -1,7 +1,17 @@
 package main
 
-import biblioScraper "cheapest-bookiego/biblio"
+import (
+	"cheapest-bookiego/conventers"
+	"cheapest-bookiego/crawlers/biblio"
+	"cheapest-bookiego/models"
+)
 
 func main() {
-	biblioScraper.Scrape("python")
+	biblioCrawler := biblio.NewBiblio()
+
+	crawlers := []models.ICrawler{biblioCrawler}
+	for _, crawler := range crawlers {
+		books := crawler.Scrape("python")
+		conventers.ConvertToCsv(books, crawler.GetName())
+	}
 }
