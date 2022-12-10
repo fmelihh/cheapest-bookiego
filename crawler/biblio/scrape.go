@@ -1,6 +1,7 @@
 package biblio
 
 import (
+	"errors"
 	"fmt"
 	"github.com/gocolly/colly"
 	"log"
@@ -24,30 +25,38 @@ func NewBiblio() *CrawlerBiblio {
 	return &CrawlerBiblio{}
 }
 
-func (crawler CrawlerBiblio) Scrape(keyword string) []models.Book {
+func (crawler CrawlerBiblio) Scrape(keyword string) ([]models.Book, error) {
 	keyword = strings.Replace(keyword, " ", "%20", -1)
-	pageInfo := crawler.getIterationInfo(keyword)
-	bookList := crawler.getPageBook(pageInfo.page, pageInfo.sid)
-
-	return bookList
+	pageInfo, err := crawler.getIterationInfo(keyword)
+	if err != nil {
+		return []models.Book{}, err
+	}
+	bookList, err := crawler.getPageBook(pageInfo.page, pageInfo.sid)
+	if err != nil {
+		return []models.Book{}, err
+	}
+	return bookList, nil
 }
 
 func (crawler CrawlerBiblio) GetName() string {
 	return "BIBLIO"
 }
 
-func (crawler CrawlerBiblio) getIterationInfo(keyword string) *PageInfo {
+func (crawler CrawlerBiblio) getIterationInfo(keyword string) (*PageInfo, error) {
 	var pages []string
 	sid := ""
 
 	c := colly.NewCollector(colly.AllowedDomains(URL))
 	c.OnHTML("ul.pagination li", func(element *colly.HTMLElement) {
 		element.ForEach("span", func(_ int, element *colly.HTMLElement) {
-			if sid == "" {
-				seperated := strings.Split(element.Attr("rel"), "sid=")
+			elementAttribute := element.Attr("rel")
+			elementText := element.Text
+
+			if sid == "" && elementAttribute != "" {
+				seperated := strings.Split(elementAttribute, "sid=")
 				sid = seperated[len(seperated)-1]
 			}
-			pages = append(pages, element.Text)
+			pages = append(pages, elementText)
 		})
 	})
 	customUrl := fmt.Sprintf("https://%s/search.php?stage=1&result_type=works&keyisbn=%s", URL, keyword)
@@ -56,19 +65,20 @@ func (crawler CrawlerBiblio) getIterationInfo(keyword string) *PageInfo {
 		fmt.Println("shit", err.Error())
 	}
 
-	page, _ := strconv.Atoi(pages[len(pages)-2])
-	return &PageInfo{
-		page: page,
-		sid:  sid,
+	if len(pages) < 2 {
+		return nil, errors.New("page info doesn't exists")
 	}
+
+	page, _ := strconv.Atoi(pages[len(pages)-2])
+	return &PageInfo{page: page, sid: sid}, nil
 
 }
 
-func (crawler CrawlerBiblio) getPageBook(page int, sid string) []models.Book {
+func (crawler CrawlerBiblio) getPageBook(page int, sid string) ([]models.Book, error) {
 	bookList := make([]models.Book, 1)
 	c := colly.NewCollector(colly.AllowedDomains(URL))
-	if page > 5 {
-		page = 5
+	if page > 10 {
+		page = 10
 	}
 
 	for i := 1; i < page; i++ {
@@ -93,8 +103,8 @@ func (crawler CrawlerBiblio) getPageBook(page int, sid string) []models.Book {
 		customUrl := fmt.Sprintf("https://%s/search.php?&page=%d&sid=%s", URL, i, sid)
 		err := c.Visit(customUrl)
 		if err != nil {
-			fmt.Println("shit", err.Error())
+			return nil, err
 		}
 	}
-	return bookList
+	return bookList, nil
 }

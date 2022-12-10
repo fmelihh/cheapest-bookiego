@@ -6,8 +6,3 @@ type Book struct {
 	Author string
 	Price  string
 }
-
-type ICrawler interface {
-	Scrape(keyword string) []Book
-	GetName() string
-}

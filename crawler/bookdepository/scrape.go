@@ -21,13 +21,17 @@ func (crawler CrawlerBookDepository) GetName() string {
 	return "BOOKDEPOSITORY"
 }
 
-func (crawler CrawlerBookDepository) Scrape(keyword string) []models.Book {
+func (crawler CrawlerBookDepository) Scrape(keyword string) ([]models.Book, error) {
 	keyword = strings.Replace(keyword, " ", "%20", -1)
-	bookList := crawler.getPageBook(keyword)
-	return bookList
+	bookList, err := crawler.getPageBook(keyword)
+	if err != nil {
+		return []models.Book{}, err
+	}
+
+	return bookList, nil
 }
 
-func (crawler CrawlerBookDepository) getPageBook(keyword string) []models.Book {
+func (crawler CrawlerBookDepository) getPageBook(keyword string) ([]models.Book, error) {
 	bookList := make([]models.Book, 0)
 	counter := 0
 	c := colly.NewCollector(colly.AllowedDomains(URL))
@@ -53,12 +57,15 @@ func (crawler CrawlerBookDepository) getPageBook(keyword string) []models.Book {
 			counter = counter + 1
 			lastLength = len(bookList)
 		})
+		if counter > 10 {
+			break
+		}
 		customUrl := fmt.Sprintf("https://%s/search?searchTerm=%s&page=%d", URL, keyword, counter)
 		err := c.Visit(customUrl)
 		if err != nil {
 			fmt.Println("shit", err.Error())
-			break
+			return nil, err
 		}
 	}
-	return bookList
+	return bookList, nil
 }
