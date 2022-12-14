@@ -1,4 +1,5 @@
 version: '3.8'
+
 services:
   redis:
     image: redis:6.2-alpine
@@ -8,6 +9,17 @@ services:
     command: redis-server --save 20 1 --loglevel warning --requirepass eYVX7EwVmmxKPCDmwMtyKVge8oLd2t81
     volumes:
       - redis:/data
+
+  mongodb:
+    image: mongo:latest
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: root
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data_container:/data/db
+
 volumes:
   redis:
     driver: local

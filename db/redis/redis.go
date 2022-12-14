@@ -4,19 +4,20 @@ import (
 	"github.com/go-redis/redis"
 )
 
-func GetClient() *redis.Client {
-	client := redis.NewClient(&redis.Options{Addr: "localhost:6379", Password: "eYVX7EwVmmxKPCDmwMtyKVge8oLd2t81", DB: 0})
-	return client
+var (
+	Address  = "localhost:6379"
+	Password = "eYVX7EwVmmxKPCDmwMtyKVge8oLd2t81"
+)
+
+type Database struct {
+	Client *redis.Client
 }
 
-func SetKey(data string) error {
-	client := GetClient()
-	err := client.Set(data, data, 0).Err()
-	return err
-}
+func NewRedisDatabase() (*Database, error) {
+	client := redis.NewClient(&redis.Options{Addr: Address, Password: Password, DB: 0})
+	if err := client.Ping().Err(); err != nil {
+		return nil, err
+	}
 
-func GetKey(data string) (string, error) {
-	client := GetClient()
-	val, err := client.Get(data).Result()
-	return val, err
+	return &Database{Client: client}, nil
 }
